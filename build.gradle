@@ -35,7 +35,7 @@ task release(dependsOn: ['assets']) {
             download.each { os, arches ->
                 arches.each { arch ->
                     def nfo = getInfo(os, arch, version);
-                    shell(cmd: "gh release upload v$version ${buildDir}/downloaded/${project.name}-$os-$arch-v$version.tgz")
+                    shell(cmd: "gh release upload v$version ${buildDir}/downloaded/${project.name}-$os-$arch-v${version}.tgz")
                 }
             }
 
