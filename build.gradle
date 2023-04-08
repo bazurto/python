@@ -66,7 +66,7 @@ task assets(dependsOn: ['downloadFiles']) {
 
                     // create asset tgz
                     if (!file(assetFileName).exists()) {
-                        shell(cmd:"tar cvfz ${assetFileName}.tmp .", dir: assetDir)
+                        shell(cmd:"tar cfz ${assetFileName}.tmp .", dir: assetDir)
                         shell(cmd:"mv ${assetFileName}.tmp ${assetFileName}", dir: "${buildDir}/downloaded")
                     }
 
@@ -89,7 +89,7 @@ task downloadFiles() {
 
                     if (!file("${buildDir}/downloaded/${nfo.fileName}").exists()) {
                         shell(cmd:"mkdir -p ${buildDir}/downloaded")
-                        shell(cmd:"wget -O ${buildDir}/downloaded/${nfo.fileName}.tmp ${nfo.url}")
+                        shell(cmd:"wget -q -O ${buildDir}/downloaded/${nfo.fileName}.tmp ${nfo.url}")
                         shell(cmd:"mv ${buildDir}/downloaded/${nfo.fileName}.tmp ${buildDir}/downloaded/${nfo.fileName}")
                     }
 
@@ -112,7 +112,7 @@ def untgz(fileName, assetDir) {
         if (fileName.contains('.zip')) { // unzip windows
             shell(cmd:"unzip $fileName", dir:"${buildDir}/downloaded" )
         } else {
-            shell(cmd:"tar xvf $fileName", dir:"${buildDir}/downloaded" )
+            shell(cmd:"tar xf $fileName", dir:"${buildDir}/downloaded" )
         }
         shell(cmd:"mv python $assetDir", dir:"${buildDir}/downloaded")
     }
