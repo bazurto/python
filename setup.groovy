@@ -68,10 +68,8 @@ class Globals {
 //    return parts
 //}
 
-
 def build = "20230116"
 def version = "3.11.1"
-
 Globals.download.each { os, arches ->
     arches.each { arch ->
         download(os, arch, version, build);
