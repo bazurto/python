@@ -147,6 +147,5 @@ def getInfo(argOs, argArch, version) {
     def base = "https://github.com/indygreg/python-build-standalone/releases/download/$build"
     def name = "cpython-$version+$build-$arch-$os-install_only.tar.gz"
     def url = "$base/$name"
-    println url
     return [fileName:name, url:url]
 }
