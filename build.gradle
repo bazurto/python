@@ -1,0 +1,152 @@
+
+// run: gradle -Pver=17.0.4.1 release
+
+ext {
+    osMap = [
+        "darwin" : "apple-darwin",
+        "windows" : "pc-windows-msvc-shared",
+        "linux" : "unknown-linux-gnu",
+    ]
+    archMap = [
+        "amd64" : "x86_64",
+        "arm64" : "aarch64",
+    ]
+
+    versions = [
+        "3.11.1" : "20230116",
+    ]
+
+    download = [
+        "linux"   : [ "amd64", "arm64" ],
+        "darwin"  : [ "amd64", "arm64" ],
+        "windows" : [ "amd64" ],
+    ]
+}
+
+task release(dependsOn: ['assets']) {
+    doLast {
+        versions.keySet().each { version ->
+
+            shell(cmd: "gh release delete -y v$version", throw: false)
+            shell(cmd: "git push origin :refs/tags/v$version", throw: false)
+            shell(cmd: "git tag -d v$version", throw: false)
+            shell(cmd: "gh release create --generate-notes -t v$version v$version")
+
+            download.each { os, arches ->
+                arches.each { arch ->
+                    def nfo = getInfo(os, arch, version);
+                    shell(cmd: "gh release upload v$version ${buildDir}/downloaded/${project.name}-$os-$arch-v$version.tgz")
+                }
+            }
+
+
+        }
+
+    }
+}
+
+task assets(dependsOn: ['downloadFiles']) {
+    doLast {
+        versions.keySet().each { version ->
+            download.each { os, arches ->
+                arches.each { arch ->
+                    def nfo = getInfo(os, arch, version);
+
+                    def assetName = "${project.name}-$os-$arch-v$version"
+                    def assetDir = "${buildDir}/downloaded/$assetName"
+                    def assetFileName = "${buildDir}/downloaded/${assetName}.tgz"
+                    def fileName = "${buildDir}/downloaded/${nfo.fileName}"
+
+                    // uncompress to asset dir
+                    untgz(fileName, assetDir)
+
+                    //
+                    writeBzFile("$assetDir/.bz")
+                    writeBzFile("$assetDir/.bz.lock")
+
+                    // create asset tgz
+                    if (!file(assetFileName).exists()) {
+                        shell(cmd:"tar cvfz ${assetFileName}.tmp .", dir: assetDir)
+                        shell(cmd:"mv ${assetFileName}.tmp ${assetFileName}", dir: "${buildDir}/downloaded")
+                    }
+
+                } // arches
+            } // download
+
+        } // versions
+
+    }
+}
+
+
+
+task downloadFiles() {
+    doLast {
+        versions.keySet().each { version ->
+            download.each { os, arches ->
+                arches.each { arch ->
+                    def nfo = getInfo(os, arch, version);
+
+                    if (!file("${buildDir}/downloaded/${nfo.fileName}").exists()) {
+                        shell(cmd:"mkdir -p ${buildDir}/downloaded")
+                        shell(cmd:"wget -O ${buildDir}/downloaded/${nfo.fileName}.tmp ${nfo.url}")
+                        shell(cmd:"mv ${buildDir}/downloaded/${nfo.fileName}.tmp ${buildDir}/downloaded/${nfo.fileName}")
+                    }
+
+                } // each arch
+            } // each download
+        }
+
+    }
+}
+
+task clean() {
+    doLast {
+        delete buildDir
+    }
+}
+
+
+def untgz(fileName, assetDir) {
+    if (!file(assetDir).exists()) {
+        if (fileName.contains('.zip')) { // unzip windows
+            shell(cmd:"unzip $fileName", dir:"${buildDir}/downloaded" )
+        } else {
+            shell(cmd:"tar xvf $fileName", dir:"${buildDir}/downloaded" )
+        }
+        shell(cmd:"mv python $assetDir", dir:"${buildDir}/downloaded")
+    }
+}
+
+def shell(opts = [:]) {
+    if (!opts.dir) { opts.dir = project.projectDir }
+    if (!opts.env) { opts.env = System.env.entrySet().stream().map { "$it.key=$it.value"  }.collect().asList() }
+    if (!opts.containsKey("throw")) { opts.throw = true }
+    opts.dir = file(opts.dir)
+
+    println opts.cmd
+    def proc = opts.cmd.execute(opts.env, opts.dir)
+    proc.consumeProcessOutput(System.out, System.err)
+    if (proc.waitFor() != 0) {
+        if (opts.throw) {
+            throw new RuntimeException("command `$opts.cmd` returned error")
+        }
+    }
+}
+
+def writeBzFile(f) {
+    def m = [:]
+    def builder = new groovy.json.JsonBuilder(m)
+    file(f).text = builder.toPrettyString()
+}
+
+def getInfo(argOs, argArch, version) {
+    def os   = osMap[argOs];
+    def arch = archMap[argArch];
+    def build = versions[version];
+    def base = "https://github.com/indygreg/python-build-standalone/releases/download/$build"
+    def name = "cpython-$version+$build-$arch-$os-install_only.tar.gz"
+    def url = "$base/$name"
+    println url
+    return [fileName:name, url:url]
+}
