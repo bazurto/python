@@ -58,11 +58,26 @@ task assets(dependsOn: ['downloadFiles']) {
                     def fileName = "${buildDir}/downloaded/${nfo.fileName}"
 
                     // uncompress to asset dir
-                    untgz(fileName, assetDir)
+
+                    if (os == "windows") {
+                        // for windows put all files in bin directory
+                        shell(cmd:"mkdir -p $assetDir")
+                        untgz(fileName, "$assetDir/bin")
+                    } else {
+                        untgz(fileName, assetDir)
+                    }
 
                     //
                     writeBzFile("$assetDir/.bz")
                     writeBzFile("$assetDir/.bz.lock")
+
+                    if (os == "windows") {
+                        // python.exe already exists for windows
+                    } else {
+                        // create plain python link.  python is python3
+                        shell(cmd:"ln -s python3.11 python", dir: "$assetDir/bin")
+                    }
+
 
                     // create asset tgz
                     if (!file(assetFileName).exists()) {
